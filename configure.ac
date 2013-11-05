@@ -14,6 +14,12 @@ AC_CONFIG_HEADERS([config.h])
 dnl required version of automake
 AM_INIT_AUTOMAKE([1.10])
 
+GETTEXT_PACKAGE=kms-dtls
+
+AC_SUBST([GETTEXT_PACKAGE])
+AC_DEFINE_UNQUOTED([GETTEXT_PACKAGE],["$GETTEXT_PACKAGE"],[The gettext domain name])
+AM_GLIB_GNU_GETTEXT
+
 dnl enable mainainer mode by default
 AM_MAINTAINER_MODE([enable])
 
