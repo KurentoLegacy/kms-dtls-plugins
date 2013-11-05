@@ -6,6 +6,7 @@ AC_INIT([kms-dtls-plugins],[1.2.0])
 dnl required versions of gstreamer and plugins-base
 GST_REQUIRED=1.2.0
 GLIB_REQ=2.38
+GNUTLS_MIN_REQUIRED=3.2.0
 
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_HEADERS([config.h])
@@ -79,6 +80,19 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([ ], [ ])], [
 ], [
   AC_MSG_RESULT([no])
 ])
+
+PKG_CHECK_MODULES(GNUTLS, [
+  gnutls >= $GNUTLS_MIN_REQUIRED
+], [
+], [
+  AC_MSG_ERROR([
+      You need to install or upgrade gnutls.
+      The minimum version required is $GNUTLS_MIN_REQUIRED.
+  ])
+])
+
+AC_SUBST([LIBGNUTLS_CFLAGS])
+AC_SUBST([LIBGNUTLS_LIBS])
 
 dnl set the plugindir where plugins should be installed (for src/Makefile.am)
 if test "x${prefix}" = "x$HOME"; then
