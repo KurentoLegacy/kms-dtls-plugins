@@ -8,6 +8,8 @@ GST_REQUIRED=1.2.0
 GLIB_REQ=2.38
 GNUTLS_MIN_REQUIRED=3.2.0
 
+SOUP_REQUIRED=2.40
+
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_HEADERS([config.h])
 
@@ -76,6 +78,20 @@ PKG_CHECK_MODULES(GST_CHECK, [
 ])
 AM_CONDITIONAL(HAVE_GST_CHECK, test "x$HAVE_GST_CHECK" = "xyes")
 
+PKG_CHECK_MODULES(SOUP, [
+  libsoup-2.4 >= $SOUP_REQUIRED
+], [
+  AC_SUBST(SOUP_CFLAGS)
+  AC_SUBST(SOUP_LIBS)
+  soup_found=true
+], [
+  AC_MSG_WARN([
+    Lib soup not found, some test are not compiled.
+  ])
+  soup_found=false
+])
+AM_CONDITIONAL([HAS_SOUP], [test x$soup_found = xtrue])
+
 dnl check if compiler understands -Wall (if yes, add -Wall to GST_CFLAGS)
 AC_MSG_CHECKING([to see if compiler understands -Wall])
 save_CFLAGS="$CFLAGS"
@@ -132,5 +148,6 @@ fi
 
 AC_CONFIG_FILES([Makefile src/Makefile
                           tests/Makefile
-                          tests/check/Makefile])
+                          tests/check/Makefile
+                          tests/examples/Makefile])
 AC_OUTPUT
