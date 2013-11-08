@@ -22,13 +22,42 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define DEBUG_NAME "webrtc_http_server"
 
 #define PORT 8080
+#define MIME_TYPE "text/html"
+#define HTML_FILE "webrtc_loopback.html"
 
 static void
 server_callback (SoupServer *server, SoupMessage *msg, const char *path,
                  GHashTable *query, SoupClientContext *client,
                  gpointer user_data)
 {
-  GST_WARNING ("TODO:implement");
+  gboolean ret;
+  gchar *contents;
+  gsize length;
+
+  GST_DEBUG ("Request: %s", path);
+
+  if (msg->method != SOUP_METHOD_GET) {
+    soup_message_set_status (msg, SOUP_STATUS_NOT_IMPLEMENTED);
+    GST_DEBUG ("Not implemented");
+    return;
+  }
+
+  if (g_strcmp0 (path, "/") != 0) {
+    soup_message_set_status (msg, SOUP_STATUS_NOT_FOUND);
+    GST_DEBUG ("Not found");
+    return;
+  }
+
+  ret = g_file_get_contents (HTML_FILE, &contents, &length, NULL);
+  if (!ret) {
+    soup_message_set_status (msg, SOUP_STATUS_INTERNAL_SERVER_ERROR);
+    GST_ERROR ("Error loading %s file", HTML_FILE);
+    return;
+  }
+
+  soup_message_set_response (msg, MIME_TYPE, SOUP_MEMORY_STATIC, "", 0);
+  soup_message_body_append (msg->response_body, SOUP_MEMORY_TAKE, contents, length);
+  GST_WARNING ("TODO: complete response");
 }
 
 int
