@@ -42,7 +42,92 @@ typedef struct _MesiaSession {
 
   NiceAgent *agent;
   guint stream_id;
+
+  GstElement *pipeline;
 } MesiaSession;
+
+static void
+bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
+{
+  switch (GST_MESSAGE_TYPE (msg)) {
+    case GST_MESSAGE_ERROR: {
+      gchar *error_file;
+
+      error_file = g_strdup_printf ("error-%s", GST_OBJECT_NAME (pipe));
+      GST_ERROR ("Error: %" GST_PTR_FORMAT, msg);
+      GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
+          GST_DEBUG_GRAPH_SHOW_ALL, error_file);
+      g_free (error_file);
+
+      /* TODO: free mediaSession*/
+      break;
+    }
+    case GST_MESSAGE_WARNING:{
+      gchar *warn_file = g_strdup_printf ("warning-%s", GST_OBJECT_NAME (pipe));
+
+      GST_WARNING ("Warning: %" GST_PTR_FORMAT, msg);
+      GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
+          GST_DEBUG_GRAPH_SHOW_ALL, warn_file);
+      g_free (warn_file);
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+static void
+create_pipeline (MesiaSession *mediaSession)
+{
+  GstElement *pipeline = gst_pipeline_new (NULL);
+  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+  GstElement *rtpvp8pay = gst_element_factory_make ("rtpvp8pay", NULL);
+  GstElement *rtpvp8depay = gst_element_factory_make ("rtpvp8depay", NULL);
+  GstElement *vp8dec = gst_element_factory_make ("vp8dec", NULL);
+  GstElement *vp8enc = gst_element_factory_make ("vp8enc", NULL);
+  GstElement *dtlssrtpenc = gst_element_factory_make ("dtlssrtpenc", NULL);
+  GstElement *dtlssrtpdec = gst_element_factory_make ("dtlssrtpdec", NULL);
+  GstElement *nicesink = gst_element_factory_make ("nicesink", NULL);
+  GstElement *nicesrc = gst_element_factory_make ("nicesrc", NULL);
+  GstElement *capsfilter = gst_element_factory_make ("capsfilter", NULL);
+  GstElement *clockoverlay = gst_element_factory_make ("clockoverlay", NULL);
+  GstCaps *caps;
+
+  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+  g_object_unref(bus);
+
+  caps = gst_caps_new_simple("application/x-rtp",
+                              "payload", G_TYPE_INT, 96,
+                              NULL);
+  g_object_set (capsfilter, "caps", caps, NULL);
+  gst_caps_unref (caps);
+
+  g_object_set (clockoverlay, "font-desc", "Sans 28", NULL);
+  g_object_set(vp8enc, "deadline", GST_SECOND / 30, "target-bitrate", 256000,
+                "keyframe-mode", 0, "end-usage", 2, NULL);
+
+  g_object_set (G_OBJECT (dtlssrtpenc), "channel-id", GST_OBJECT_NAME (pipeline), NULL);
+  g_object_set (G_OBJECT (dtlssrtpenc), "is-client", FALSE, NULL);
+  g_object_set (G_OBJECT (dtlssrtpdec), "channel-id", GST_OBJECT_NAME (pipeline), NULL);
+  g_object_set (G_OBJECT (dtlssrtpdec), "is-client", FALSE, NULL);
+  g_object_set (G_OBJECT (dtlssrtpdec), "certificate-pem-file", PEMFILE, NULL);
+
+  g_object_set (G_OBJECT (nicesink), "agent", mediaSession->agent, "stream", mediaSession->stream_id, "component", 1, NULL);
+  g_object_set (G_OBJECT (nicesrc), "agent", mediaSession->agent, "stream", mediaSession->stream_id, "component", 1, NULL);
+
+  gst_bin_add_many (GST_BIN (pipeline), nicesrc, dtlssrtpdec, rtpvp8depay, rtpvp8pay, dtlssrtpenc, nicesink,
+                    capsfilter, vp8dec, vp8enc, clockoverlay, NULL);
+  gst_element_link_many (nicesrc, dtlssrtpdec, capsfilter, rtpvp8depay, vp8dec, clockoverlay,
+                         vp8enc, rtpvp8pay, dtlssrtpenc, nicesink, NULL);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS(GST_BIN(pipeline), GST_DEBUG_GRAPH_SHOW_ALL,
+                                GST_OBJECT_NAME(pipeline));
+
+  mediaSession->pipeline = pipeline;
+}
 
 static gchar*
 generate_fingerprint (const gchar *pem_file)
@@ -208,6 +293,8 @@ init_media_session (SoupServer *server, SoupMessage *msg, gint64 id)
                          nice_agent_recv, NULL);
   g_signal_connect (mediaSession->agent, "candidate-gathering-done",
     G_CALLBACK (gathering_done), mediaSession);
+
+  create_pipeline (mediaSession);
 
   nice_agent_gather_candidates (mediaSession->agent, mediaSession->stream_id);
 
