@@ -26,6 +26,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define PORT 8080
 #define MIME_TYPE "text/html"
 #define HTML_FILE "webrtc_loopback.html"
+#define PEMFILE "certkey.pem"
 
 typedef struct _MediaSession {
   GMainContext *context;
@@ -38,6 +39,39 @@ typedef struct _MediaSession {
   guint stream_id;
 } MesiaSession;
 
+static gchar*
+generate_fingerprint (const gchar *pem_file)
+{
+  GTlsCertificate *cert;
+  GError *error = NULL;
+  GByteArray *ba;
+  gssize length;
+  int size;
+  gchar *fingerprint;
+  gchar *fingerprint_colon;
+  int i, j;
+
+  cert = g_tls_certificate_new_from_file (pem_file, &error);
+  g_object_get (cert, "certificate", &ba, NULL);
+  fingerprint = g_compute_checksum_for_data (G_CHECKSUM_SHA1, ba->data, ba->len);
+  g_object_unref (cert);
+
+  length = g_checksum_type_get_length (G_CHECKSUM_SHA1);
+  size = (int)(length*2 + length) * sizeof (gchar);
+  fingerprint_colon = g_malloc0 (size);
+
+  j = 0;
+  for (i=0; i< length*2; i+=2) {
+    fingerprint_colon[j] = fingerprint[i];
+    fingerprint_colon[++j] = fingerprint[i+1];
+    fingerprint_colon[++j] = ':';
+    j++;
+  };
+  fingerprint_colon[size-1] = '\0';
+  g_free (fingerprint);
+
+  return fingerprint_colon;
+}
 
 static void
 gathering_done (NiceAgent *agent, guint stream_id, MesiaSession *mediaSession)
@@ -50,6 +84,7 @@ gathering_done (NiceAgent *agent, guint stream_id, MesiaSession *mediaSession)
   NiceCandidate *lowest_prio_cand = NULL;
   gchar addr[NICE_ADDRESS_STRING_LEN+1];
   gchar *ufrag, *pwd;
+  gchar *fingerprint;
   gchar *line;
 
   nice_agent_get_local_credentials (mediaSession->agent, mediaSession->stream_id, &ufrag, &pwd);
@@ -64,6 +99,7 @@ gathering_done (NiceAgent *agent, guint stream_id, MesiaSession *mediaSession)
   }
 
   nice_address_to_string (&lowest_prio_cand->addr, addr);
+  fingerprint = generate_fingerprint (PEMFILE);
 
   sdpStr = g_string_new ("");
   g_string_append_printf (sdpStr,
@@ -73,14 +109,19 @@ gathering_done (NiceAgent *agent, guint stream_id, MesiaSession *mediaSession)
       "\"t=0 0\\r\\n\" +\n"
       "\"a=ice-ufrag:%s\\r\\n\" +\n"
       "\"a=ice-pwd:%s\\r\\n\" +\n"
+      "\"a=fingerprint:sha-1 %s\\r\\n\" +\n"
+      "\"a=group:BUNDLE video\\r\\n\" +\n"
       "\"m=video %d RTP/SAVPF 96\\r\\n\" +\n"
       "\"c=IN IP4 %s\\r\\n\" +\n"
       "\"a=rtpmap:96 VP8/90000\\r\\n\" +\n"
-      "\"a=sendrecv\\r\\n\"",
-      addr, ufrag, pwd, nice_address_get_port (&lowest_prio_cand->addr), addr);
+      "\"a=sendrecv\\r\\n\" +\n"
+      "\"a=mid:video\\r\\n\" +\n"
+      "\"a=rtcp-mux\\r\\n\"",
+      addr, ufrag, pwd, fingerprint, nice_address_get_port (&lowest_prio_cand->addr), addr);
 
   g_free (ufrag);
   g_free (pwd);
+  g_free (fingerprint);
 
   for (walk = candidates; walk; walk = walk->next) {
     NiceCandidate *cand = walk->data;
