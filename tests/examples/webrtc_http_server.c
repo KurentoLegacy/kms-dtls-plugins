@@ -28,7 +28,12 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define HTML_FILE "webrtc_loopback.html"
 #define PEMFILE "certkey.pem"
 
-typedef struct _MediaSession {
+static GRand *rand;
+static GHashTable *cookies;
+
+typedef struct _MesiaSession {
+  gint64 id;
+
   GMainContext *context;
   GMainLoop * loop;
 
@@ -165,13 +170,23 @@ loop_thread (gpointer loop)
   return NULL;
 }
 
-static void
-init_media_session (SoupServer *server, SoupMessage *msg)
+
+static gboolean
+configure_media_session (MesiaSession *mediaSession, const gchar *sdp)
+{
+  GST_WARNING ("TODO: implement");
+
+  return TRUE;
+}
+
+static MesiaSession*
+init_media_session (SoupServer *server, SoupMessage *msg, gint64 id)
 {
   MesiaSession *mediaSession;
   GThread * lt;
 
   mediaSession = g_slice_new0 (MesiaSession); /* TODO: free */
+  mediaSession->id = id;
 
   mediaSession->context = g_main_context_new ();
   mediaSession->loop = g_main_loop_new (mediaSession->context, TRUE); /* TODO: g_main_loop_unref */
@@ -195,6 +210,8 @@ init_media_session (SoupServer *server, SoupMessage *msg)
     G_CALLBACK (gathering_done), mediaSession);
 
   nice_agent_gather_candidates (mediaSession->agent, mediaSession->stream_id);
+
+  return mediaSession;
 }
 
 static void
@@ -205,6 +222,11 @@ server_callback (SoupServer *server, SoupMessage *msg, const char *path,
   gboolean ret;
   gchar *contents;
   gsize length;
+  const char *cookie_str;
+  SoupCookie *cookie = NULL;
+  gint64 id, *id_ptr;
+  char *header;
+  MesiaSession *mediaSession = NULL;
 
   GST_DEBUG ("Request: %s", path);
 
@@ -220,6 +242,74 @@ server_callback (SoupServer *server, SoupMessage *msg, const char *path,
     return;
   }
 
+  cookie_str = soup_message_headers_get_list (msg->request_headers, "Cookie");
+  if (cookie_str != NULL) {
+    gchar **tokens, **token;
+
+    tokens = g_strsplit (cookie_str, ";", 0);
+    for (token = tokens; *token != NULL; token++) {
+      cookie = soup_cookie_parse (*token, NULL);
+
+      if (cookie != NULL) {
+        if (g_strcmp0 (cookie->name, "id") == 0) {
+          id = g_ascii_strtoll (cookie->value, NULL, 0);
+          if (id != G_GINT64_CONSTANT (0)) {
+            GST_DEBUG ("Found id: %"G_GINT64_FORMAT, id);
+            mediaSession = g_hash_table_lookup (cookies, &id);
+            break;
+          }
+        }
+        soup_cookie_free (cookie);
+        cookie = NULL;
+      }
+    }
+    g_strfreev (tokens);
+  }
+
+  if (cookie == NULL) {
+    gchar *id_str;
+    const gchar *host;
+
+    id = g_rand_double_range (rand, (double) G_MININT64, (double) G_MAXINT64);
+    id_str = g_strdup_printf ("%" G_GINT64_FORMAT, id);
+    host = soup_message_headers_get_one(msg->request_headers, "Host");
+    if (host == NULL) {
+      host = "localhost";
+    }
+
+    cookie = soup_cookie_new ("id", id_str, host, path, -1);
+    g_free (id_str);
+  }
+
+  if (query != NULL) {
+    gchar * sdp = g_hash_table_lookup(query, "sdp");
+    if (sdp != NULL && mediaSession != NULL) {
+      if (configure_media_session (mediaSession, sdp)) {
+        soup_message_set_status (msg, SOUP_STATUS_OK);
+      } else {
+        soup_message_set_status (msg, SOUP_STATUS_NOT_ACCEPTABLE);
+      }
+      soup_message_set_response (msg, MIME_TYPE, SOUP_MEMORY_STATIC, "", 0);
+      return;
+    }
+  }
+
+  g_hash_table_remove (cookies, &id);
+
+  header = soup_cookie_to_cookie_header (cookie);
+  if (header != NULL) {
+    soup_message_headers_append (msg->response_headers, "Set-Cookie", header);
+    g_free(header);
+  } else {
+    GST_WARNING ("Null cookie");
+  }
+  soup_cookie_free (cookie);
+
+  mediaSession = init_media_session (server, msg, id);
+  id_ptr = g_malloc (sizeof(gint64));
+  *id_ptr = id;
+  g_hash_table_insert (cookies, id_ptr, mediaSession);
+
   ret = g_file_get_contents (HTML_FILE, &contents, &length, NULL);
   if (!ret) {
     soup_message_set_status (msg, SOUP_STATUS_INTERNAL_SERVER_ERROR);
@@ -230,8 +320,12 @@ server_callback (SoupServer *server, SoupMessage *msg, const char *path,
   soup_message_set_response (msg, MIME_TYPE, SOUP_MEMORY_STATIC, "", 0);
   soup_message_body_append (msg->response_body, SOUP_MEMORY_TAKE, contents, length);
   soup_server_pause_message (server, msg);
+}
 
-  init_media_session (server, msg);
+static void
+destroy_media_session (gpointer data)
+{
+  GST_WARNING ("TODO: implement");
 }
 
 int
@@ -242,11 +336,17 @@ main (int argc, char ** argv)
   gst_init (&argc, &argv);
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, DEBUG_NAME, 0, DEBUG_NAME);
 
+  cookies = g_hash_table_new_full(g_int64_hash, g_int64_equal, g_free, destroy_media_session);
+  rand = g_rand_new ();
+
   GST_INFO ("Start Kurento WebRTC HTTP server");
   server = soup_server_new (SOUP_SERVER_PORT, PORT,
                             NULL);
   soup_server_add_handler (server, "/", server_callback, NULL, NULL);
   soup_server_run (server);
+
+  g_hash_table_destroy (cookies);
+  g_rand_free (rand);
 
   return 0;
 }
