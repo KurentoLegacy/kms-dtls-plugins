@@ -143,10 +143,10 @@ generate_fingerprint (const gchar *pem_file)
 
   cert = g_tls_certificate_new_from_file (pem_file, &error);
   g_object_get (cert, "certificate", &ba, NULL);
-  fingerprint = g_compute_checksum_for_data (G_CHECKSUM_SHA1, ba->data, ba->len);
+  fingerprint = g_compute_checksum_for_data (G_CHECKSUM_SHA256, ba->data, ba->len);
   g_object_unref (cert);
 
-  length = g_checksum_type_get_length (G_CHECKSUM_SHA1);
+  length = g_checksum_type_get_length (G_CHECKSUM_SHA256);
   size = (int)(length*2 + length) * sizeof (gchar);
   fingerprint_colon = g_malloc0 (size);
 
@@ -199,7 +199,7 @@ gathering_done (NiceAgent *agent, guint stream_id, MesiaSession *mediaSession)
       "\"t=0 0\\r\\n\" +\n"
       "\"a=ice-ufrag:%s\\r\\n\" +\n"
       "\"a=ice-pwd:%s\\r\\n\" +\n"
-      "\"a=fingerprint:sha-1 %s\\r\\n\" +\n"
+      "\"a=fingerprint:sha-256 %s\\r\\n\" +\n"
       "\"a=group:BUNDLE video\\r\\n\" +\n"
       "\"m=video %d RTP/SAVPF 96\\r\\n\" +\n"
       "\"c=IN IP4 %s\\r\\n\" +\n"
