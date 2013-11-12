@@ -152,8 +152,8 @@ generate_fingerprint (const gchar *pem_file)
 
   j = 0;
   for (i=0; i< length*2; i+=2) {
-    fingerprint_colon[j] = fingerprint[i];
-    fingerprint_colon[++j] = fingerprint[i+1];
+    fingerprint_colon[j] = g_ascii_toupper (fingerprint[i]);
+    fingerprint_colon[++j] = g_ascii_toupper (fingerprint[i+1]);
     fingerprint_colon[++j] = ':';
     j++;
   };
