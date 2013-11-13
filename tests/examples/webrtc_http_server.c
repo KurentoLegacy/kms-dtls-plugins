@@ -188,6 +188,9 @@ gathering_done (NiceAgent *agent, guint stream_id, MesiaSession *mediaSession)
       lowest_prio_cand = cand;
   }
 
+  candidates = g_slist_concat (candidates,
+                               nice_agent_get_local_candidates (mediaSession->agent, mediaSession->stream_id, 2));
+
   nice_address_to_string (&lowest_prio_cand->addr, addr);
   fingerprint = generate_fingerprint (PEMFILE);
 
@@ -367,8 +370,10 @@ init_media_session (SoupServer *server, SoupMessage *msg, gint64 id)
                "stun-server-port", 3478,
                NULL);
 
-  mediaSession->stream_id = nice_agent_add_stream (mediaSession->agent, 1);
+  mediaSession->stream_id = nice_agent_add_stream (mediaSession->agent, 2);
   nice_agent_attach_recv (mediaSession->agent, mediaSession->stream_id, 1, mediaSession->context,
+                         nice_agent_recv, NULL);
+  nice_agent_attach_recv (mediaSession->agent, mediaSession->stream_id, 2, mediaSession->context,
                          nice_agent_recv, NULL);
   g_signal_connect (mediaSession->agent, "candidate-gathering-done",
     G_CALLBACK (gathering_done), mediaSession);
