@@ -16,6 +16,7 @@
 #include <gst/gst.h>
 #include <libsoup/soup.h>
 #include <nice/nice.h>
+#include <string.h>
 
 #define GST_CAT_DEFAULT webrtc_http_server
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -41,7 +42,71 @@ typedef struct _MediaSession {
 static void
 gathering_done (NiceAgent *agent, guint stream_id, MesiaSession *mediaSession)
 {
-  GST_WARNING ("TODO: implement");
+  SoupServer *server = mediaSession->server;
+  SoupMessage *msg = mediaSession->msg;
+  GString *sdpStr;
+  GSList *candidates;
+  GSList *walk;
+  NiceCandidate *lowest_prio_cand = NULL;
+  gchar addr[NICE_ADDRESS_STRING_LEN+1];
+  gchar *ufrag, *pwd;
+  gchar *line;
+
+  nice_agent_get_local_credentials (mediaSession->agent, mediaSession->stream_id, &ufrag, &pwd);
+  candidates = nice_agent_get_local_candidates (mediaSession->agent, mediaSession->stream_id, 1);
+
+  for (walk = candidates; walk; walk = walk->next) {
+    NiceCandidate *cand = walk->data;
+
+    if (!lowest_prio_cand ||
+        lowest_prio_cand->priority < cand->priority)
+      lowest_prio_cand = cand;
+  }
+
+  nice_address_to_string (&lowest_prio_cand->addr, addr);
+
+  sdpStr = g_string_new ("");
+  g_string_append_printf (sdpStr,
+      "\"v=0\\r\\n\" +\n"
+      "\"o=- 2750483185 0 IN IP4 %s\\r\\n\" +\n"
+      "\"s=\\r\\n\" +\n"
+      "\"t=0 0\\r\\n\" +\n"
+      "\"a=ice-ufrag:%s\\r\\n\" +\n"
+      "\"a=ice-pwd:%s\\r\\n\" +\n"
+      "\"m=video %d RTP/SAVPF 96\\r\\n\" +\n"
+      "\"c=IN IP4 %s\\r\\n\" +\n"
+      "\"a=rtpmap:96 VP8/90000\\r\\n\" +\n"
+      "\"a=sendrecv\\r\\n\"",
+      addr, ufrag, pwd, nice_address_get_port (&lowest_prio_cand->addr), addr);
+
+  g_free (ufrag);
+  g_free (pwd);
+
+  for (walk = candidates; walk; walk = walk->next) {
+    NiceCandidate *cand = walk->data;
+
+    nice_address_to_string (&cand->addr, addr);
+    g_string_append_printf (sdpStr,
+        "+\n\"a=candidate:%s %d UDP %d %s %d typ host\\r\\n\"",
+        cand->foundation, cand->component_id, cand->priority, addr,
+        nice_address_get_port (&cand->addr));
+  }
+  g_slist_free_full (candidates, (GDestroyNotify) nice_candidate_free);
+
+  line = g_strdup_printf("sdp = %s;\n", sdpStr->str);
+  soup_message_body_append (msg->response_body, SOUP_MEMORY_TAKE, line,
+                            strlen(line));
+  g_string_free (sdpStr, FALSE);
+
+  line = "</script>\n</body>\n</html>\n";
+  soup_message_body_append (msg->response_body, SOUP_MEMORY_STATIC, line,
+                            strlen(line));
+
+  soup_message_set_status (msg, SOUP_STATUS_OK);
+  soup_server_unpause_message (server, msg);
+
+  g_object_unref (server);
+  g_object_unref (msg);
 }
 
 static void
@@ -123,9 +188,9 @@ server_callback (SoupServer *server, SoupMessage *msg, const char *path,
 
   soup_message_set_response (msg, MIME_TYPE, SOUP_MEMORY_STATIC, "", 0);
   soup_message_body_append (msg->response_body, SOUP_MEMORY_TAKE, contents, length);
+  soup_server_pause_message (server, msg);
 
   init_media_session (server, msg);
-  GST_WARNING ("TODO: complete response");
 }
 
 int
