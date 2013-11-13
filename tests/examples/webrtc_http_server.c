@@ -183,6 +183,9 @@ gathering_done (NiceAgent *agent, guint stream_id, MesiaSession *mediaSession)
   for (walk = candidates; walk; walk = walk->next) {
     NiceCandidate *cand = walk->data;
 
+    if (nice_address_ip_version (&cand->addr) == 6)
+      continue;
+
     if (!lowest_prio_cand ||
         lowest_prio_cand->priority < cand->priority)
       lowest_prio_cand = cand;
