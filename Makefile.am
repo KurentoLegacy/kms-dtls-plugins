@@ -1,8 +1,10 @@
 SUBDIRS = 				\
-	src
+	src 				\
+	tests
 
 DIST_SUBDIRS =				\
-		src
+		src			\
+		tests
 
 EXTRA_DIST = autogen.sh
 

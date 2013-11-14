@@ -100,6 +100,18 @@ PKG_CHECK_MODULES(GNUTLS, [
 AC_SUBST([LIBGNUTLS_CFLAGS])
 AC_SUBST([LIBGNUTLS_LIBS])
 
+AC_MSG_CHECKING(for certtool)
+if test "x$CERTTOOL_GNUTLS" != "x"; then
+  AC_MSG_RESULT([$CERTTOOL_GNUTLS (from environment)])
+else
+  AC_PATH_PROG(CERTTOOL_GNUTLS, [certtool], [certtool])
+  AC_MSG_RESULT([$CERTTOOL_GNUTLS])
+fi
+if ! $CERTTOOL_GNUTLS --version 2>/dev/null >/dev/null; then
+  AC_MSG_ERROR([$CERTTOOL_GNUTLS does not seem to work!])
+fi
+AC_SUBST(CERTTOOL_GNUTLS)
+
 dnl set the plugindir where plugins should be installed (for src/Makefile.am)
 if test "x${prefix}" = "x$HOME"; then
   plugindir="$HOME/.kms-dtls-plugins/plugins"
@@ -118,5 +130,7 @@ else
   AC_DEFINE_UNQUOTED([FINAL_INSTALL_DIR], ["$FINAL_INSTALL_DIR"],"Final installation Path")
 fi
 
-AC_CONFIG_FILES([Makefile src/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile
+                          tests/Makefile
+                          tests/check/Makefile])
 AC_OUTPUT
