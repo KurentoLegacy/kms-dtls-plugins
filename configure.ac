@@ -9,6 +9,7 @@ GLIB_REQ=2.38
 GNUTLS_MIN_REQUIRED=3.2.0
 
 SOUP_REQUIRED=2.40
+NICE_REQUIRED=0.1.4
 
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_HEADERS([config.h])
@@ -91,6 +92,20 @@ PKG_CHECK_MODULES(SOUP, [
   soup_found=false
 ])
 AM_CONDITIONAL([HAS_SOUP], [test x$soup_found = xtrue])
+
+PKG_CHECK_MODULES(NICE, [
+  nice >= $NICE_REQUIRED
+], [
+  AC_SUBST(NICE_CFLAGS)
+  AC_SUBST(NICE_LIBS)
+  nice_found=true
+], [
+  AC_MSG_WARN([
+    libnice not found, some test are not compiled.
+  ])
+  nice_found=false
+])
+AM_CONDITIONAL([HAS_NICE], [test x$nice_found = xtrue])
 
 dnl check if compiler understands -Wall (if yes, add -Wall to GST_CFLAGS)
 AC_MSG_CHECKING([to see if compiler understands -Wall])
