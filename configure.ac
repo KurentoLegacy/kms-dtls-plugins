@@ -124,7 +124,7 @@ PKG_CHECK_MODULES(GNUTLS, [
 ], [
   AC_MSG_ERROR([
       You need to install or upgrade gnutls.
-      The minimum version required is $GNUTLS_MIN_REQUIRED.
+      The minimum version required is $GNUTLS_MIN_REQUIRED (libgnutls28-dev).
   ])
 ])
 
