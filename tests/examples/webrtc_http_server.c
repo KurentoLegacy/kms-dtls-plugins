@@ -17,6 +17,7 @@
 #include <libsoup/soup.h>
 #include <nice/nice.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define GST_CAT_DEFAULT webrtc_http_server
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -26,9 +27,11 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define PORT 8080
 #define MIME_TYPE "text/html"
 #define HTML_FILE "webrtc_loopback.html"
-#define PEMFILE "certkey.pem"
 
-static GRand *rand;
+#define CERTTOOL_TEMPLATE "/tmp/certtool.tmpl"
+#define CERT_KEY_PEM_FILE "/tmp/certkey.pem"
+
+static GRand *_rand;
 static GHashTable *cookies;
 
 typedef struct _MesiaSession {
@@ -112,7 +115,7 @@ create_pipeline (MesiaSession *mediaSession)
   g_object_set (G_OBJECT (dtlssrtpenc), "is-client", FALSE, NULL);
   g_object_set (G_OBJECT (dtlssrtpdec), "channel-id", GST_OBJECT_NAME (pipeline), NULL);
   g_object_set (G_OBJECT (dtlssrtpdec), "is-client", FALSE, NULL);
-  g_object_set (G_OBJECT (dtlssrtpdec), "certificate-pem-file", PEMFILE, NULL);
+  g_object_set (G_OBJECT (dtlssrtpdec), "certificate-pem-file", CERT_KEY_PEM_FILE, NULL);
 
   g_object_set (G_OBJECT (nicesink), "agent", mediaSession->agent, "stream", mediaSession->stream_id, "component", 1, NULL);
   g_object_set (G_OBJECT (nicesrc), "agent", mediaSession->agent, "stream", mediaSession->stream_id, "component", 1, NULL);
@@ -127,6 +130,32 @@ create_pipeline (MesiaSession *mediaSession)
                                 GST_OBJECT_NAME(pipeline));
 
   mediaSession->pipeline = pipeline;
+}
+
+static gboolean
+generate_certkey_pem_file (const gchar * cert_key_pem_file)
+{
+  gchar *cmd;
+  int ret;
+
+  cmd =
+      g_strconcat ("/bin/sh -c \"certtool --generate-privkey --outfile ",
+      cert_key_pem_file, "\"", NULL);
+  ret = system (cmd);
+  g_free (cmd);
+
+  if (ret == -1)
+    return FALSE;
+
+  cmd =
+      g_strconcat
+      ("/bin/sh -c \"echo 'organization = kurento' > ", CERTTOOL_TEMPLATE,
+      " && certtool --generate-self-signed --load-privkey ", cert_key_pem_file,
+      " --template ", CERTTOOL_TEMPLATE, " >> ", cert_key_pem_file, "\"", NULL);
+  ret = system (cmd);
+  g_free (cmd);
+
+  return (ret != -1);
 }
 
 static gchar*
@@ -195,7 +224,7 @@ gathering_done (NiceAgent *agent, guint stream_id, MesiaSession *mediaSession)
                                nice_agent_get_local_candidates (mediaSession->agent, mediaSession->stream_id, 2));
 
   nice_address_to_string (&lowest_prio_cand->addr, addr);
-  fingerprint = generate_fingerprint (PEMFILE);
+  fingerprint = generate_fingerprint (CERT_KEY_PEM_FILE);
 
   sdpStr = g_string_new ("");
   g_string_append_printf (sdpStr,
@@ -444,7 +473,7 @@ server_callback (SoupServer *server, SoupMessage *msg, const char *path,
     gchar *id_str;
     const gchar *host;
 
-    id = g_rand_double_range (rand, (double) G_MININT64, (double) G_MAXINT64);
+    id = g_rand_double_range (_rand, (double) G_MININT64, (double) G_MAXINT64);
     id_str = g_strdup_printf ("%" G_GINT64_FORMAT, id);
     host = soup_message_headers_get_one(msg->request_headers, "Host");
     if (host == NULL) {
@@ -510,8 +539,9 @@ main (int argc, char ** argv)
   gst_init (&argc, &argv);
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, DEBUG_NAME, 0, DEBUG_NAME);
 
+  generate_certkey_pem_file (CERT_KEY_PEM_FILE);
   cookies = g_hash_table_new_full(g_int64_hash, g_int64_equal, g_free, destroy_media_session);
-  rand = g_rand_new ();
+  _rand = g_rand_new ();
 
   GST_INFO ("Start Kurento WebRTC HTTP server");
   server = soup_server_new (SOUP_SERVER_PORT, PORT,
@@ -520,7 +550,7 @@ main (int argc, char ** argv)
   soup_server_run (server);
 
   g_hash_table_destroy (cookies);
-  g_rand_free (rand);
+  g_rand_free (_rand);
 
   return 0;
 }
