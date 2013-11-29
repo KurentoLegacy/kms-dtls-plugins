@@ -24,6 +24,5 @@ TESTS =	$(check_PROGRAMS)
 check_PROGRAMS =						\
 	elements/dtlssrtp
 
-elements_dtlssrtp_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) $(GIO_CFLAGS) -Werror \
-				-DCERTTOOL_TEMPLATE=\"$(abs_top_builddir)/tests/certkey.tmpl\"
+elements_dtlssrtp_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) $(GIO_CFLAGS) -Werror
 elements_dtlssrtp_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) $(GIO_LIBS)
