@@ -1,13 +1,16 @@
 
-if HAVE_GST_CHECK
-SUBDIRS_CHECK = check
-else
+#if HAVE_GST_CHECK
+#SUBDIRS_CHECK = check
+#else
 SUBDIRS_CHECK =
-endif
+#endif
 
 SUBDIRS = 			\
 	$(SUBDIRS_CHECK)	\
 	examples
 
+# Temporarily disabled
+if FALSE
 DIST_SUBDIRS = 			\
 	check
+endif
