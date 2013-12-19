@@ -162,6 +162,7 @@ else
 fi
 
 AC_CONFIG_FILES([Makefile src/Makefile
+                          src/rtcpdemux/Makefile
                           tests/Makefile
                           tests/check/Makefile
                           tests/examples/Makefile])
