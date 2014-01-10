@@ -1,7 +1,7 @@
 dnl required version of autoconf
 AC_PREREQ([2.53])
 
-AC_INIT([kms-dtls-plugins],[1.0.2])
+AC_INIT([kms-dtls-plugins],[1.0.3-dev])
 
 dnl required versions of gstreamer and plugins-base
 GST_REQUIRED=1.2.0
