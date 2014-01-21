@@ -22,7 +22,11 @@ $(CHECK_REGISTRY):
 TESTS =	$(check_PROGRAMS)
 
 check_PROGRAMS =						\
+	elements/dtls						\
 	elements/dtlssrtp
+
+elements_dtls_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) $(GIO_CFLAGS) -Werror
+elements_dtls_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) $(GIO_LIBS)
 
 elements_dtlssrtp_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) $(GIO_CFLAGS) -Werror
 elements_dtlssrtp_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) $(GIO_LIBS)
