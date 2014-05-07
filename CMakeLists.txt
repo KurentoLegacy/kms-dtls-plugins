@@ -61,6 +61,8 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_CONFIG_H -Werror -Wall")
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
+enable_testing()
+
 add_subdirectory(src)
 add_subdirectory(tests)
 
