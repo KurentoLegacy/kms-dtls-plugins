@@ -39,3 +39,4 @@ gstdtls-enumtypes.h
 *.tmp
 COPYING
 *.orig
+build
