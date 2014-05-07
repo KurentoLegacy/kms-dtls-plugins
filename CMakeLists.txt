@@ -45,6 +45,8 @@ pkg_check_modules(GNUTLS REQUIRED gnutls>=${GNUTLS_REQUIRED})
 pkg_check_modules(SOUP libsoup-2.4>=${SOUP_REQUIRED})
 pkg_check_modules(NICE nice>=${NICE_REQUIRED})
 
+find_program(VALGRIND valgrind)
+
 set (VERSION ${PROJECT_VERSION})
 set (PACKAGE ${PROJECT_NAME})
 set (GETTEXT_PACKAGE "kms-dtls")
