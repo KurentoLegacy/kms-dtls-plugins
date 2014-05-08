@@ -12,14 +12,16 @@ execute_process(COMMAND ${GIT_EXEC} rev-parse --git-dir OUTPUT_VARIABLE GIT_DIR
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 if(EXISTS ${GIT_EXEC} AND EXISTS "${GIT_DIR}")
-  execute_process(COMMAND ${GIT_EXEC} submodule init WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
-  execute_process(COMMAND ${GIT_EXEC} submodule update WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+  execute_process(COMMAND ${GIT_EXEC} submodule init WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+  execute_process(COMMAND ${GIT_EXEC} submodule update WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+  execute_process(COMMAND ${GIT_EXEC} remote update WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
   execute_process(COMMAND ${GIT_EXEC} describe --abbrev=6 --tags --dirty --always --match "${TAG}*"
                   OUTPUT_VARIABLE PROJECT_VERSION
-                  OUTPUT_STRIP_TRAILING_WHITESPACE)
+                  OUTPUT_STRIP_TRAILING_WHITESPACE
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
   string(REGEX REPLACE "^${TAG}(.*)" "\\1" PROJECT_VERSION ${PROJECT_VERSION})
   if (NOT EXISTS ${GIT_DIR}/hooks/pre-commit)
-    execute_process(COMMAND ln -s ${CMAKE_SOURCE_DIR}/hooks/pre-commit.hook
+    execute_process(COMMAND ln -s ${CMAKE_CURRENT_SOURCE_DIR}/hooks/pre-commit.hook
                     "${GIT_DIR}/hooks/pre-commit")
   endif ()
 else()
