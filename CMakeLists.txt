@@ -68,6 +68,9 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 enable_testing()
 
 add_subdirectory(src)
+
+set (DISABLE_TESTS FALSE CACHE BOOL "Disable make check")
+
 add_subdirectory(tests)
 
 message(STATUS "Compiling : ${PROJECT_NAME}-${PROJECT_VERSION}")
