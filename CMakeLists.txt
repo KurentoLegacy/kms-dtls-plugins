@@ -67,9 +67,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 set (DISABLE_TESTS FALSE CACHE BOOL "Disable make check")
 
-if (NOT ${DISABLE_TESTST})
-  enable_testing()
-endif ()
+enable_testing()
 
 add_subdirectory(src)
 
