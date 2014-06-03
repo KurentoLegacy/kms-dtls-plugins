@@ -42,6 +42,7 @@ set (NICE_REQUIRED 0.1.4)
 
 pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0>=${GST_REQUIRED})
 pkg_check_modules(GSTREAMER_CHECK REQUIRED gstreamer-check-1.0>=${GST_REQUIRED})
+pkg_check_modules(GSTREAMER_1_3 gstreamer-1.0>=1.3)
 pkg_check_modules(GIO REQUIRED gio-2.0>=${GLIB_REQUIRED})
 pkg_check_modules(GNUTLS REQUIRED gnutls>=${GNUTLS_REQUIRED})
 pkg_check_modules(SOUP libsoup-2.4>=${SOUP_REQUIRED})
