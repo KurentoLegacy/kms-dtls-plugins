@@ -13,7 +13,7 @@ install_git_hook (pre-commit ${CMAKE_CURRENT_SOURCE_DIR}/hooks/pre-commit.hook)
 
 find_package(PkgConfig)
 
-set (GST_REQUIRED 1.2.0)
+set (GST_REQUIRED 1.3.3)
 set (GLIB_REQUIRED 2.38)
 set (GNUTLS_REQUIRED 3.2.0)
 set (SOUP_REQUIRED 2.40)
@@ -21,7 +21,6 @@ set (NICE_REQUIRED 0.1.4)
 
 pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0>=${GST_REQUIRED})
 pkg_check_modules(GSTREAMER_CHECK REQUIRED gstreamer-check-1.0>=${GST_REQUIRED})
-pkg_check_modules(GSTREAMER_1_3 gstreamer-1.0>=1.3)
 pkg_check_modules(GSTREAMER_RTP REQUIRED gstreamer-rtp-1.0>=${GST_REQUIRED})
 pkg_check_modules(GIO REQUIRED gio-2.0>=${GLIB_REQUIRED})
 pkg_check_modules(GNUTLS REQUIRED gnutls>=${GNUTLS_REQUIRED})
